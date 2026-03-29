@@ -16,17 +16,6 @@ echo -e "${GREEN}║   DMS Pre-Migration Database Assessment       ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════════════╝${NC}"
 echo
 
-read -p "DB Host: " DB_HOST
-read -p "DB Port [5432]: " DB_PORT
-DB_PORT=${DB_PORT:-5432}
-read -p "DB Name [postgres]: " DB_NAME
-DB_NAME=${DB_NAME:-postgres}
-read -p "DB Username [postgres]: " DB_USER
-DB_USER=${DB_USER:-postgres}
-read -s -p "DB Password: " DB_PASS
-echo
-echo
-
 PSQL_CMD="/opt/homebrew/opt/libpq/bin/psql"
 if [ ! -f "$PSQL_CMD" ]; then
     PSQL_CMD=$(which psql 2>/dev/null || echo "")
@@ -36,15 +25,29 @@ if [ ! -f "$PSQL_CMD" ]; then
     fi
 fi
 
-export PGPASSWORD="$DB_PASS"
-PSQL="$PSQL_CMD -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -A"
-PSQL_PRETTY="$PSQL_CMD -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME"
+while true; do
+    read -p "DB Host: " DB_HOST
+    read -p "DB Port [5432]: " DB_PORT
+    DB_PORT=${DB_PORT:-5432}
+    read -p "DB Name [postgres]: " DB_NAME
+    DB_NAME=${DB_NAME:-postgres}
+    read -p "DB Username [postgres]: " DB_USER
+    DB_USER=${DB_USER:-postgres}
+    read -s -p "DB Password: " DB_PASS
+    echo
 
-# Test connection
-if ! $PSQL -c "SELECT 1" > /dev/null 2>&1; then
-    echo -e "${RED}Cannot connect to database${NC}"
-    exit 1
-fi
+    export PGPASSWORD="$DB_PASS"
+    PSQL="$PSQL_CMD -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -A"
+    PSQL_PRETTY="$PSQL_CMD -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME"
+
+    if $PSQL -c "SELECT 1" > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ Connected to $DB_HOST:$DB_PORT/$DB_NAME${NC}"
+        break
+    else
+        echo -e "${RED}✗ Connection failed. Check host, port, username, or password.${NC}"
+        echo
+    fi
+done
 
 REPORT_FILE="db-assessment-$(date +%Y%m%d-%H%M%S).txt"
 
